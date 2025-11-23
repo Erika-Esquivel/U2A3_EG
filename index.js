@@ -1,91 +1,79 @@
-//Importamos las librarías requeridas
-const express = require('express')
-const bodyParser = require('body-parser')
-const sqlite3 = require('sqlite3').verbose();
+// Importamos librerías requeridas
+const express = require("express");
+const bodyParser = require("body-parser");
+const sqlite3 = require("sqlite3").verbose();
 
-//Documentación en https://expressjs.com/en/starter/hello-world.html
-const app = express()
+// Inicializamos Express
+const app = express();
 
-//Creamos un parser de tipo application/json
-//Documentación en https://expressjs.com/en/resources/middleware/body-parser.html
-const jsonParser = bodyParser.json()
+// Parser JSON
+const jsonParser = bodyParser.json();
 
+// Conectar a la base de datos SQLite
+let db = new sqlite3.Database("./base.sqlite3", (err) => {
+  if (err) {
+    console.error(err.message);
+  }
+  console.log("Conectado a SQLite");
 
-// Abre la base de datos de SQLite
-let db = new sqlite3.Database('./base.sqlite3', (err) => {
-    if (err) {
-        console.error(err.message);
-    }
-    console.log('Conectado a la base de datos SQLite.');
-
-    db.run(`CREATE TABLE IF NOT EXISTS todos (
+  db.run(
+    `CREATE TABLE IF NOT EXISTS todos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         todo TEXT NOT NULL,
         created_at INTEGER
-    )`, (err) => {
-        if (err) {
-            console.error(err.message);
-        } else {
-            console.log('Tabla tareas creada o ya existente.');
-        }
-    });
+    )`,
+    (err) => {
+      if (err) console.error(err.message);
+      else console.log("Tabla creada o existente");
+    }
+  );
 });
 
-//Creamos un endpoint de login que recibe los datos como json
-app.post('/insert', jsonParser, function (req, res) {
-    //Imprimimos el contenido del campo todo
-    const { todo } = req.body;
-   
-    console.log(todo);
-    res.setHeader('Content-Type', 'application/json');
-    
+// INSERTAR TODO (POST)
+app.post("/insert", jsonParser, (req, res) => {
+  const { todo } = req.body;
 
-    if (!todo) {
-        res.status(400).send('Falta información necesaria');
-        return;
+  if (!todo) {
+    res.status(400).json({ error: "Falta campo todo" });
+    return;
+  }
+
+  const stmt = db.prepare(
+    "INSERT INTO todos (todo, created_at) VALUES (?, CURRENT_TIMESTAMP)"
+  );
+
+  stmt.run(todo, (err) => {
+    if (err) {
+      console.error("Error insertando:", err);
+      res.status(500).json({ error: "Error en DB" });
+      return;
     }
-    const stmt  =  db.prepare('INSERT INTO todos (todo, created_at) VALUES (?, CURRENT_TIMESTAMP)');
+    console.log("Insert exitoso");
+    res.status(201).json({ status: "creado" });
+  });
 
-    stmt.run(todo, (err) => {
-        if (err) {
-          console.error("Error running stmt:", err);
-          res.status(500).send(err);
-          return;
+  stmt.finalize();
+});
 
-        } else {
-          console.log("Insert was successful!");
-        }
-    });
+// LISTA DE TODOS (GET)
+app.get("/todos", (req, res) => {
+  db.all("SELECT * FROM todos", [], (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: "Error en DB" });
+      return;
+    }
+    res.json(rows);
+  });
+});
 
-    stmt.finalize();
-    
-    //Enviamos de regreso la respuesta
-    res.setHeader('Content-Type', 'application/json');
-    res.status(201).send();
-})
+// Endpoint raíz
+app.get("/", (req, res) => {
+  res.json({ status: "ok" });
+});
 
-
-
-app.get('/', function (req, res) {
-    //Enviamos de regreso la respuesta
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ 'status': 'ok2' }));
-})
-
-
-//Creamos un endpoint de login que recibe los datos como json
-app.post('/login', jsonParser, function (req, res) {
-    //Imprimimos el contenido del body
-    console.log(req.body);
-
-    //Enviamos de regreso la respuesta
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ 'status': 'ok' }));
-})
-
-//Corremos el servidor en el puerto 3000
-const port = 3000;
+// Render usa un puerto dinámico
+const port = process.env.PORT || 3000;
 
 app.listen(port, () => {
-    console.log(`Aplicación corriendo en http://localhost:${port}`)
-})
+  console.log(`Aplicación en funcionamiento en puerto ${port}`);
+});
