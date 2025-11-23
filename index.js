@@ -70,7 +70,29 @@ app.get("/todos", (req, res) => {
 app.get("/", (req, res) => {
   res.json({ status: "ok" });
 });
+// Endpoint para actualizar un TODO
+app.post('/update', jsonParser, function (req, res) {
+    const { id, todo } = req.body;
 
+    if (!id || !todo) {
+        res.status(400).json({ error: "Faltan datos" });
+        return;
+    }
+
+    const stmt = db.prepare('UPDATE todos SET todo = ? WHERE id = ?');
+
+    stmt.run(todo, id, function (err) {
+        if (err) {
+            console.error(err);
+            res.status(500).json({ error: "Error al actualizar" });
+            return;
+        }
+
+        res.status(200).json({ message: "Actualizado correctamente" });
+    });
+
+    stmt.finalize();
+});
 // Render usa un puerto dinámico
 const port = process.env.PORT || 3000;
 
