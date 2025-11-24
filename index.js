@@ -93,6 +93,19 @@ app.post('/update', jsonParser, function (req, res) {
 
     stmt.finalize();
 });
+
+app.get('/get', (req, res) => {
+    db.all("SELECT * FROM todos ORDER BY id DESC", [], (err, rows) => {
+        if (err) {
+            console.log(err);
+            res.status(500).json({ error: "Error en la base de datos" });
+            return;
+        }
+
+        res.setHeader('Content-Type', 'application/json');
+        res.status(200).json(rows);
+    });
+});
 // Render usa un puerto dinámico
 const port = process.env.PORT || 3000;
 
